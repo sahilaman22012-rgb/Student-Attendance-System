@@ -1,23 +1,28 @@
-/**
- * Frontend Demo Authentication API Service
- */
-import { DEMO_USERS } from '../context/AuthContext';
+import { apiRequest } from './client';
 
-export async function loginApi(email) {
-  let matchedUser = DEMO_USERS.TEACHER;
-  if (email.toLowerCase().includes('student')) {
-    matchedUser = DEMO_USERS.STUDENT;
-  } else if (email.toLowerCase().includes('admin')) {
-    matchedUser = DEMO_USERS.ADMIN;
+export async function loginApi(email, password) {
+  const result = await apiRequest('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  localStorage.setItem('access_token', result.access_token);
+  if (result.refresh_token) {
+    localStorage.setItem('refresh_token', result.refresh_token);
   }
-  return {
-    access_token: `demo_token_${Date.now()}`,
-    refresh_token: `demo_refresh_${Date.now()}`,
-    token_type: 'bearer',
-    user: matchedUser,
-  };
+  localStorage.setItem('user_data', JSON.stringify(result.user));
+  return result;
 }
 
 export async function getMeApi() {
-  return DEMO_USERS.TEACHER;
+  return apiRequest('/auth/me');
+}
+
+export function changePasswordApi(currentPassword, newPassword) {
+  return apiRequest('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
 }

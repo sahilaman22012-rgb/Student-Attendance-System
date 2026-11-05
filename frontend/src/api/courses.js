@@ -1,28 +1,23 @@
-import { DEMO_COURSES, DEMO_STUDENTS } from '../utils/mockData';
+import { apiRequest } from './client';
 
-export async function listCoursesApi() {
-  return DEMO_COURSES;
+export function listCoursesApi() {
+  return apiRequest('/courses');
 }
 
-export async function createCourseApi(courseData) {
-  return {
-    id: `c-${Date.now()}`,
-    ...courseData,
-    total_students: 35,
-    attendance_rate: 90.0,
-  };
+export function createCourseApi(courseData) {
+  return apiRequest('/courses', {
+    method: 'POST',
+    body: JSON.stringify(courseData),
+  });
 }
 
-export async function enrollStudentApi(courseId, studentId) {
-  return {
-    id: `enr-${Date.now()}`,
-    course_id: courseId,
-    student_id: studentId,
-    enrolled_at: new Date().toISOString(),
-    is_active: true,
-  };
+export function enrollStudentApi(courseId, studentId) {
+  return apiRequest(`/courses/${courseId}/enroll`, {
+    method: 'POST',
+    body: JSON.stringify({ student_id: studentId }),
+  });
 }
 
-export async function getCourseStudentsApi() {
-  return DEMO_STUDENTS;
+export function getCourseStudentsApi(courseId) {
+  return apiRequest(`/courses/${courseId}/students`);
 }

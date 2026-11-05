@@ -1,27 +1,28 @@
-import { DEMO_STUDENTS } from '../utils/mockData';
+import { apiRequest } from './client';
 
-export async function listUsersApi() {
-  return DEMO_STUDENTS;
+export function listUsersApi(params = {}) {
+  const query = new URLSearchParams(params);
+  return apiRequest(`/users${query.size ? `?${query}` : ''}`);
 }
 
-export async function createStudentApi(data) {
-  return {
-    id: `s-${Date.now()}`,
-    ...data,
-    role: 'STUDENT',
-    status: 'ACTIVE',
-  };
+export function listStudentsApi() {
+  return apiRequest('/users/students');
 }
 
-export async function createTeacherApi(data) {
-  return {
-    id: `t-${Date.now()}`,
-    ...data,
-    role: 'TEACHER',
-    status: 'ACTIVE',
-  };
+export function createStudentApi(data) {
+  return apiRequest('/users/students', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
-export async function getUserApi(userId) {
-  return DEMO_STUDENTS.find((s) => s.id === userId) || DEMO_STUDENTS[0];
+export function createTeacherApi(data) {
+  return apiRequest('/users/teachers', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function getUserApi(userId) {
+  return apiRequest(`/users/${userId}`);
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   CheckSquare,
   Search,
@@ -21,10 +21,15 @@ import { Modal } from '../components/ui/Modal';
 import { calculatePercentage } from '../utils/helpers';
 import { useToast } from '../context/ToastContext';
 import { useData } from '../context/DataContext';
+import { getCourseStudentsApi } from '../api/courses';
+import { submitManualAttendanceApi } from '../api/attendance';
 
 export function AttendanceManagement() {
   const { showToast } = useToast();
-  const { courses, students, submitAttendanceSession } = useData();
+  const { courses, refreshData } = useData();
+  const [students, setStudents] = useState([]);
+  const [loadError, setLoadError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Selection states
   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || '');
@@ -43,6 +48,36 @@ export function AttendanceManagement() {
 
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (!selectedCourseId && courses.length) setSelectedCourseId(courses[0].id);
+  }, [courses, selectedCourseId]);
+
+  useEffect(() => {
+    let active = true;
+    if (!selectedCourseId) {
+      setStudents([]);
+      return () => {
+        active = false;
+      };
+    }
+    setLoadError('');
+    getCourseStudentsApi(selectedCourseId)
+      .then((roster) => {
+        if (!active) return;
+        setStudents(roster);
+        setAttendanceMap(Object.fromEntries(roster.map((student) => [student.id, 'ABSENT'])));
+        setIsSubmitted(false);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setStudents([]);
+        setLoadError(error.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedCourseId]);
 
   const handleStatusChange = (studentId, status) => {
     if (isSubmitted) {
@@ -85,19 +120,34 @@ export function AttendanceManagement() {
     return name.includes(search) || roll.includes(search);
   });
 
-  const handleSubmitAttendance = () => {
+  const handleSubmitAttendance = async () => {
     const records = Object.entries(attendanceMap).map(([student_id, status]) => ({
       student_id,
       status,
     }));
+    const [clock, meridiem] = periodSlot.split(' - ')[0].split(' ');
+    let [hours, minutes] = clock.split(':').map(Number);
+    if (meridiem === 'PM' && hours !== 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
 
-    submitAttendanceSession(selectedCourseId, sessionDate, periodSlot, records);
-    showToast(
-      `Attendance sheet saved for ${selectedCourseObj?.course_code}! Rate: ${attendanceRate}%`,
-      'success'
-    );
-    setIsSubmitted(true);
-    setConfirmModalOpen(false);
+    setIsSaving(true);
+    try {
+      await submitManualAttendanceApi({
+        course_id: selectedCourseId,
+        start_time: new Date(
+          `${sessionDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`
+        ).toISOString(),
+        records,
+      });
+      await refreshData();
+      showToast(`Attendance saved for ${selectedCourseObj?.course_code}.`, 'success');
+      setIsSubmitted(true);
+      setConfirmModalOpen(false);
+    } catch (error) {
+      showToast(error.message || 'Could not save attendance.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -127,7 +177,6 @@ export function AttendanceManagement() {
               value={selectedCourseId}
               onChange={(e) => {
                 setSelectedCourseId(e.target.value);
-                setIsSubmitted(false);
               }}
               options={courses.map((c) => ({
                 value: c.id,
@@ -193,6 +242,7 @@ export function AttendanceManagement() {
       </div>
 
       {/* Roster & Quick Mark Toolbar */}
+      {loadError && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{loadError}</p>}
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -257,7 +307,7 @@ export function AttendanceManagement() {
                 return (
                   <TableRow key={st.id}>
                     <TableCell className="font-mono text-xs font-bold text-[#7067E8]">
-                      {st.roll_number || '2026-CS-001'}
+                      {st.roll_number}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-3">
@@ -348,7 +398,8 @@ export function AttendanceManagement() {
               size="lg"
               icon={CheckSquare}
               onClick={() => setConfirmModalOpen(true)}
-              disabled={isSubmitted || students.length === 0}
+              disabled={isSubmitted || students.length === 0 || Boolean(loadError) || isSaving}
+              isLoading={isSaving}
             >
               {isSubmitted ? 'Sheet Finalized' : 'Review & Save Attendance'}
             </Button>
@@ -411,7 +462,7 @@ export function AttendanceManagement() {
             <Button variant="outline" onClick={() => setConfirmModalOpen(false)}>
               Back to Sheet
             </Button>
-            <Button variant="primary" onClick={handleSubmitAttendance}>
+            <Button variant="primary" onClick={handleSubmitAttendance} isLoading={isSaving}>
               Confirm & Save Sheet
             </Button>
           </div>

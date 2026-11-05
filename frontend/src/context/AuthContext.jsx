@@ -1,91 +1,66 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { getMeApi, loginApi } from '../api/auth';
 
 const AuthContext = createContext(null);
 
-export const DEMO_USERS = {
-  TEACHER: {
-    id: 'demo-teacher-01',
-    email: 'teacher@apex.edu',
-    first_name: 'Dr. Robert',
-    last_name: 'Vance',
-    role: 'TEACHER',
-    department: 'Computer Science',
-    identifier: 'EMP-9021',
-    status: 'ACTIVE',
-  },
-  STUDENT: {
-    id: 'demo-student-01',
-    email: 'alex.wright@student.apex.edu',
-    first_name: 'Alexander',
-    last_name: 'Wright',
-    role: 'STUDENT',
-    department: 'Computer Science',
-    identifier: '2026-CS-001',
-    status: 'ACTIVE',
-  },
-  ADMIN: {
-    id: 'demo-admin-01',
-    email: 'admin@apex.edu',
-    first_name: 'System',
-    last_name: 'Administrator',
-    role: 'ADMIN',
-    department: 'Academic Affairs',
-    identifier: 'ADM-0001',
-    status: 'ACTIVE',
-  },
-};
-
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('demo_user_session');
-    return saved ? JSON.parse(saved) : DEMO_USERS.TEACHER;
-  });
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(() => localStorage.getItem('access_token'));
+  const [isLoading, setIsLoading] = useState(Boolean(localStorage.getItem('access_token')));
 
-  const [token, setToken] = useState(() => localStorage.getItem('demo_token') || 'demo_jwt_token_active');
-
-  const login = async (email, password) => {
-    let matchedUser = DEMO_USERS.TEACHER;
-
-    if (email.toLowerCase().includes('student')) {
-      matchedUser = DEMO_USERS.STUDENT;
-    } else if (email.toLowerCase().includes('admin')) {
-      matchedUser = DEMO_USERS.ADMIN;
-    } else {
-      matchedUser = {
-        id: `user-${Date.now()}`,
-        email,
-        first_name: email.split('@')[0].toUpperCase(),
-        last_name: 'User',
-        role: 'TEACHER',
-        department: 'Computer Science',
-        identifier: 'EMP-1000',
-        status: 'ACTIVE',
+  useEffect(() => {
+    let active = true;
+    if (!token) {
+      setIsLoading(false);
+      return () => {
+        active = false;
       };
     }
 
-    const mockToken = `demo_token_${Date.now()}`;
-    localStorage.setItem('demo_token', mockToken);
-    localStorage.setItem('demo_user_session', JSON.stringify(matchedUser));
+    getMeApi()
+      .then((currentUser) => {
+        if (!active) return;
+        setUser(currentUser);
+        localStorage.setItem('user_data', JSON.stringify(currentUser));
+      })
+      .catch(() => {
+        if (!active) return;
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user_data');
+        setToken(null);
+        setUser(null);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
 
-    setUser(matchedUser);
-    setToken(mockToken);
+    return () => {
+      active = false;
+    };
+  }, [token]);
 
-    return { success: true, user: matchedUser };
+  const login = async (email, password) => {
+    const result = await loginApi(email, password);
+    setUser(result.user);
+    setToken(result.access_token);
+    return { user: result.user };
   };
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('demo_token');
-    localStorage.removeItem('demo_user_session');
-    setUser(null);
+  const logout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user_data');
     setToken(null);
-  }, []);
+    setUser(null);
+  };
 
   const value = {
     user,
-    role: user?.role || 'TEACHER',
+    role: user?.role,
     token,
-    isAuthenticated: !!user,
-    isLoading: false,
+    isAuthenticated: Boolean(user && token),
+    isLoading,
     login,
     logout,
   };

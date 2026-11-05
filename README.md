@@ -1,67 +1,98 @@
-# ATTENDIQ — Smart Campus Attendance Platform 🎓⚡
+# AttendIQ
 
-**ATTENDIQ** is a modern, responsive, teacher-controlled student attendance system designed for academic institutions. Built with **React, Vite, JavaScript, and Tailwind CSS**, it features dynamic rotating QR session tokens, interactive manual roster sheet marking, student shortage threshold alerts (<75%), subject progress analytics, and CSV report export.
+AttendIQ is a full-stack attendance application with a FastAPI/PostgreSQL backend and a React/Vite frontend. It supports administrator-managed accounts and courses, teacher-managed manual attendance, short-lived QR attendance sessions, and student attendance records and reports.
 
----
+## Run locally
 
-## 🌟 Key Features
+### Backend
 
-### 👨‍🏫 Instructor / Admin Workspace
-- **Dynamic QR Session Generator**: Broadcasts time-limited attendance sessions with auto-rotating security nonces (updates every 15s to prevent static screenshot proxying).
-- **Interactive Attendance Sheet**: Segment controls for **Present (Teal)**, **Absent (Rose)**, **Late (Amber)**, and **Excused (Violet)**.
-- **Bulk Roster Actions**: *Mark All Present*, *Mark All Absent*, *Invert Selection*, and student search filters.
-- **Review Confirmation Step**: Verification modal before finalizing class sessions.
-- **Analytics & Shortage Audits**: Subject-wise performance tracking with **Export CSV** capability.
+Requirements: Python 3.11+ and PostgreSQL 13+.
 
-### 👨‍🎓 Student Portal
-- **Attendance Percentage Circular Ring**: Visual gauge displaying overall attendance rate and exam eligibility status (*Eligible for Exams* vs *Shortage Warning*).
-- **Subject Progress Cards**: Progress bars equipped with a **75% minimum threshold line marker**.
-- **Monthly Check-In Heatmap Grid**: Visual 28-day calendar grid tracking daily check-in statuses.
-- **Strict Read-Only Enforcement**: Secure view ensuring students cannot alter entries or self-mark attendance.
+In PowerShell:
 
----
-
-## 🛠️ Tech Stack & Design System
-
-- **Frontend**: React 19, Vite, JavaScript, Tailwind CSS v4, Lucide React Icons
-- **Navigation & Routing**: React Router v6
-- **State & Notification**: React Context API (`AuthProvider`, `DataProvider`, `ToastProvider`)
-- **Theme Palette**:
-  - Deep Navy Sidebar: `#182443`
-  - Primary Accent Violet: `#7067E8`
-  - Soft Lavender Highlights: `#E9E7FF`
-  - Teal Success Indicators: `#39B99B`
-  - Rose Absence Indicators: `#E55353`
-
----
-
-## 🚀 Quick Start Guide
-
-### 1. Clone & Install Dependencies
-```bash
-cd frontend
-npm install
+```powershell
+cd backend
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
 ```
 
-### 2. Launch Development Server
-```bash
+Edit `backend/.env` and set `DATABASE_URL` to a database you own, then apply migrations and optionally create local sample data:
+
+```powershell
+alembic upgrade head
+$env:SEED_PASSWORD = "Use-a-unique-local-password"
+python -m app.db.seed
+uvicorn app.main:app --reload
+```
+
+The development seed creates `admin@attendance.local`, two teachers, and ten students. They all receive the password provided through `SEED_PASSWORD`. The seed only inserts data into an empty database and is disabled in production. API docs are available at `http://localhost:8000/docs` in development.
+
+If upgrading a database created by an earlier release, back it up and verify that its schema matches the initial migration before stamping it: run `alembic stamp 0001_initial`, then `alembic upgrade head`. Do not run that stamp against a new or partially initialized database.
+
+To create the first administrator without sample data, set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` in the backend process environment and run:
+
+```powershell
+python -m app.db.bootstrap_admin
+```
+
+This command refuses to run if an administrator already exists.
+
+### Frontend
+
+In another PowerShell window:
+
+```powershell
+cd frontend
+npm ci
 npm run dev
 ```
-Open your browser at `http://localhost:5173/` or `http://localhost:5174/`.
 
----
+Open the Vite URL (normally `http://localhost:5173`). The Vite development server proxies `/api` to `http://localhost:8000`. QR camera scanning works on `localhost` or a secure HTTPS origin; browsers block camera access on ordinary remote HTTP pages.
 
-## 🔑 Demo Login Credentials (Presentation Mode)
+## Docker Compose
 
-| Role | Email | Password |
-| :--- | :--- | :--- |
-| **Teacher** | `teacher@apex.edu` | `teacher123` |
-| **Student** | `alex.wright@student.apex.edu` | `student123` |
-| **Admin** | `admin@apex.edu` | `admin1234` |
+Docker Compose starts PostgreSQL, runs database migrations before starting the API, and serves the production frontend:
 
-*Includes 1-click role selection tabs and Google Sign-In UI demonstration.*
+```powershell
+Copy-Item .env.example .env
+```
 
----
+Edit `.env` and replace both placeholder secrets with unique random values. `APP_ORIGIN` must be the public HTTPS origin used by the browser. The backend now builds its PostgreSQL connection URL from separate settings, so database passwords containing `@` or other URL-special characters are handled safely. Then:
 
-## 📄 License
-This project is open-source and available under the [MIT License](LICENSE).
+```powershell
+docker compose up --build -d
+```
+
+The frontend is available at `http://localhost:8080` by default. For real deployments, put it behind an HTTPS reverse proxy/load balancer and set `APP_ORIGIN` to that HTTPS address. Do not expose the database port publicly. On Windows, create the first admin with the interactive helper. It checks/synchronizes the database password and backend connection before prompting for account details, then uses the running backend rather than creating a one-off container:
+
+```powershell
+.\scripts\create-admin.ps1
+```
+
+The helper asks for the email and asks for the password twice without displaying it. The password must be 12–72 UTF-8 bytes. The bootstrap command refuses to run if an administrator already exists. On other platforms, run `python -m app.db.bootstrap_admin` inside the running backend container after securely setting those environment variables for that command.
+
+The Compose stack is a deployable container baseline, not a complete managed hosting setup: TLS termination, domain/DNS, backups, monitoring, and provider-specific secrets still need to be configured for the chosen host.
+
+## Tests and checks
+
+```powershell
+cd backend
+python -m pytest
+alembic history
+```
+
+```powershell
+cd frontend
+npm run lint
+npm run build
+```
+
+## Security and operations
+
+- Never commit `.env` files or use the local seed in production.
+- Use a unique random `SECRET_KEY` (at least 32 characters) and a unique database password.
+- Configure production with `ENVIRONMENT=production`, PostgreSQL, and explicit HTTPS `CORS_ORIGINS`. The production API disables Swagger/OpenAPI routes.
+- Back up PostgreSQL and test restore procedures before production use.
+- Rotate credentials if they have ever been shared or committed.

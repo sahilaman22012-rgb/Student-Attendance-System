@@ -1,339 +1,175 @@
-import React, { useState, useEffect } from 'react';
-import {
-  QrCode,
-  Clock,
-  RefreshCw,
-  Users,
-  ShieldCheck,
-  Play,
-  Square,
-  CheckCircle2,
-  Smartphone,
-  Sparkles,
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Play, QrCode, Square } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { MainLayout } from '../components/layout/MainLayout';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
-import { Badge } from '../components/ui/Badge';
-import { Modal } from '../components/ui/Modal';
-import { useToast } from '../context/ToastContext';
 import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
+import {
+  createAttendanceSessionApi,
+  endAttendanceSessionApi,
+  getCurrentQrTokenApi,
+} from '../api/attendance';
 
 export function QrAttendance() {
-  const { courses, students } = useData();
+  const { courses, refreshData } = useData();
   const { showToast } = useToast();
-
-  const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || '');
-  const [durationMinutes, setDurationMinutes] = useState(5);
-
+  const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState('5');
   const [activeSession, setActiveSession] = useState(null);
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState(0);
-  const [qrNonce, setQrNonce] = useState('');
-  const [nonceTimer, setNonceTimer] = useState(15);
-  const [scannedStudents, setScannedStudents] = useState([]);
-  const [isSimulatingScan, setIsSimulatingScan] = useState(false);
+  const [qrToken, setQrToken] = useState(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [isBusy, setIsBusy] = useState(false);
+  const [error, setError] = useState('');
 
-  // Main session countdown timer
   useEffect(() => {
-    if (!activeSession || timeLeftSeconds <= 0) return;
+    if (!selectedCourseId && courses.length) setSelectedCourseId(courses[0].id);
+  }, [courses, selectedCourseId]);
 
-    const interval = setInterval(() => {
-      setTimeLeftSeconds((prev) => {
-        if (prev <= 1) {
-          showToast('Dynamic QR session expired.', 'warning');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [activeSession, timeLeftSeconds]);
-
-  // Rotating security nonce token refresh (updates every 15s to prevent screenshot reuse)
   useEffect(() => {
-    if (!activeSession || timeLeftSeconds <= 0) return;
-
-    const nonceInterval = setInterval(() => {
-      setNonceTimer((prev) => {
-        if (prev <= 1) {
-          const newNonce = `ATT-TOKEN-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-4)}`;
-          setQrNonce(newNonce);
-          return 15;
-        }
-        return prev - 1;
-      });
+    if (!activeSession) return undefined;
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((new Date(activeSession.end_time).getTime() - Date.now()) / 1000));
+      setSecondsLeft(remaining);
     }, 1000);
+    return () => window.clearInterval(timer);
+  }, [activeSession]);
 
-    return () => clearInterval(nonceInterval);
-  }, [activeSession, timeLeftSeconds]);
+  useEffect(() => {
+    if (!activeSession || !qrToken) return undefined;
+    const delay = Math.max(0, new Date(qrToken.expires_at).getTime() - Date.now() + 100);
+    const timer = window.setTimeout(async () => {
+      try {
+        setQrToken(await getCurrentQrTokenApi(activeSession.id));
+      } catch (requestError) {
+        setError(requestError.message);
+      }
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [activeSession, qrToken]);
 
-  const handleStartSession = () => {
-    const session = {
-      id: `ses-${Date.now()}`,
-      course_id: selectedCourseId,
-      status: 'ACTIVE',
-    };
-
-    setActiveSession(session);
-    setTimeLeftSeconds(parseInt(durationMinutes) * 60);
-    setQrNonce(`ATT-TOKEN-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-4)}`);
-    setNonceTimer(15);
-    setScannedStudents([]);
-    showToast('Dynamic QR broadcast active! Rotating security token generated.', 'success');
-  };
-
-  const handleStopSession = () => {
-    setActiveSession(null);
-    setTimeLeftSeconds(0);
-    showToast('QR session closed.', 'info');
-  };
-
-  const handleSimulateStudentScan = (student) => {
-    if (scannedStudents.some((s) => s.id === student.id)) {
-      showToast(`${student.first_name} has already scanned for this session.`, 'warning');
-      return;
+  const startSession = async () => {
+    setError('');
+    setIsBusy(true);
+    try {
+      const session = await createAttendanceSessionApi({
+        course_id: selectedCourseId,
+        duration_minutes: Number(durationMinutes),
+      });
+      setActiveSession(session);
+      setSecondsLeft(Number(durationMinutes) * 60);
+      setQrToken(await getCurrentQrTokenApi(session.id));
+      await refreshData();
+      showToast('QR attendance session started.', 'success');
+    } catch (requestError) {
+      setError(requestError.message);
+      setQrToken(null);
+    } finally {
+      setIsBusy(false);
     }
-    setScannedStudents((prev) => [
-      { ...student, marked_at: new Date().toLocaleTimeString(), verified: true },
-      ...prev,
-    ]);
-    showToast(`Verified & Marked Present: ${student.first_name} ${student.last_name}`, 'success');
   };
 
-  const selectedCourseObj = courses.find((c) => c.id === selectedCourseId) || courses[0];
-  const isExpired = activeSession && timeLeftSeconds <= 0;
+  const endSession = async () => {
+    if (!activeSession) return;
+    setIsBusy(true);
+    try {
+      await endAttendanceSessionApi(activeSession.id);
+      setActiveSession(null);
+      setQrToken(null);
+      await refreshData();
+      showToast('Attendance session ended.', 'success');
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const qrPayload = qrToken
+    ? JSON.stringify({ session_id: qrToken.session_id, nonce: qrToken.nonce })
+    : '';
 
   return (
-    <MainLayout title="Dynamic QR Session">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <MainLayout title="QR Attendance Session">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-[#182443] tracking-tight">Dynamic QR Session Broadcast</h2>
-          <p className="text-xs text-slate-500">
-            Generate rotating security QR codes for student classroom check-ins
-          </p>
+          <h2 className="text-xl font-bold text-[#182443]">Live QR attendance</h2>
+          <p className="text-sm text-slate-500">Tokens are issued and rotated by the server every 15 seconds.</p>
         </div>
-
-        {activeSession && !isExpired && (
-          <Button variant="danger" icon={Square} onClick={handleStopSession}>
-            End Broadcast
+        {activeSession && (
+          <Button variant="danger" icon={Square} onClick={endSession} disabled={isBusy}>
+            End session
           </Button>
         )}
       </div>
-
-      {/* Security Protocol Banner */}
-      <div className="p-4 rounded-2xl bg-[#182443] text-white border border-[#283966] shadow-md flex items-start space-x-3">
-        <ShieldCheck className="w-5 h-5 text-[#39B99B] shrink-0 mt-0.5" />
-        <div className="text-xs">
-          <p className="font-extrabold text-white uppercase tracking-wider">Auto-Rotating Security Nonces</p>
-          <p className="text-slate-300 mt-0.5 leading-relaxed">
-            ATTENDIQ QR tokens auto-rotate dynamic nonces every 15 seconds to prevent static screenshot sharing. Scanning validates active session TTL and student authorization.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Session Configuration Card */}
-        <Card className="lg:col-span-1">
+      {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card>
           <CardHeader>
-            <CardTitle>Session Configuration</CardTitle>
-            <CardDescription>Setup live classroom broadcast</CardDescription>
+            <CardTitle>Session setup</CardTitle>
+            <CardDescription>Select a course and check-in window.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Select
-              label="Select Subject Course"
+              label="Course"
               value={selectedCourseId}
-              onChange={(e) => setSelectedCourseId(e.target.value)}
-              disabled={!!activeSession && !isExpired}
-              options={courses.map((c) => ({
-                value: c.id,
-                label: `${c.course_code} - ${c.title}`,
+              disabled={Boolean(activeSession)}
+              onChange={(event) => setSelectedCourseId(event.target.value)}
+              options={courses.map((course) => ({
+                value: course.id,
+                label: `${course.course_code} - ${course.title}`,
               }))}
             />
-
             <Select
-              label="Session Duration"
+              label="Duration"
               value={durationMinutes}
-              onChange={(e) => setDurationMinutes(e.target.value)}
-              disabled={!!activeSession && !isExpired}
-              options={[
-                { value: 1, label: '1 Minute (Express Check-In)' },
-                { value: 3, label: '3 Minutes (Standard)' },
-                { value: 5, label: '5 Minutes (Extended)' },
-                { value: 10, label: '10 Minutes' },
-              ]}
+              disabled={Boolean(activeSession)}
+              onChange={(event) => setDurationMinutes(event.target.value)}
+              options={[1, 3, 5, 10].map((minutes) => ({
+                value: String(minutes),
+                label: `${minutes} minutes`,
+              }))}
             />
-
-            {!activeSession || isExpired ? (
+            {!activeSession && (
               <Button
-                variant="primary"
-                className="w-full py-3"
+                className="w-full"
                 icon={Play}
-                onClick={handleStartSession}
+                disabled={!selectedCourseId || isBusy}
+                isLoading={isBusy}
+                onClick={startSession}
               >
-                Start Dynamic Broadcast
+                Start session
               </Button>
-            ) : (
-              <div className="p-4 bg-[#EBF8F5] border border-[#39B99B]/30 rounded-xl space-y-2 text-center">
-                <Badge status="ACTIVE">BROADCASTING ACTIVE</Badge>
-                <p className="text-xs font-bold text-[#2fa085] mt-1">
-                  Active for {selectedCourseObj?.course_code}
-                </p>
-              </div>
+            )}
+            {activeSession && (
+              <p className="rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">
+                Active · {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')} remaining
+              </p>
             )}
           </CardContent>
         </Card>
-
-        {/* Dynamic QR Display Box */}
         <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Live QR Display Screen</CardTitle>
-              <CardDescription>Project this screen to students during class</CardDescription>
-            </div>
-            {activeSession && !isExpired && (
-              <span className="text-xs font-bold text-[#2fa085] bg-[#EBF8F5] px-3 py-1 rounded-full border border-[#39B99B]/30 flex items-center">
-                <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Nonce Refresh: {nonceTimer}s
-              </span>
-            )}
+          <CardHeader>
+            <CardTitle>Student check-in QR</CardTitle>
+            <CardDescription>Students sign in and scan this code from the Scan QR page.</CardDescription>
           </CardHeader>
-
-          <CardContent className="flex flex-col items-center justify-center p-6 text-center space-y-6">
-            {activeSession && !isExpired ? (
+          <CardContent className="flex min-h-80 flex-col items-center justify-center gap-4">
+            {qrPayload && secondsLeft > 0 ? (
               <>
-                {/* Dynamic QR Matrix Box */}
-                <div className="p-6 bg-white rounded-3xl border-4 border-[#182443] shadow-2xl animate-pulse-glow inline-block relative">
-                  <div className="w-56 h-56 bg-[#182443] rounded-2xl p-4 flex flex-col items-center justify-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-[#7067E8]/30 via-[#182443] to-[#39B99B]/20" />
-                    <QrCode className="w-40 h-40 text-white relative z-10" />
-                    <span className="text-[10px] font-mono text-[#928BFF] relative z-10 font-bold tracking-widest mt-1">
-                      {qrNonce}
-                    </span>
-                  </div>
-                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-[#7067E8] text-white text-[10px] font-bold px-3 py-0.5 rounded-full shadow">
-                    Auto-Rotating Nonce Token
-                  </div>
-                </div>
-
-                {/* Session Countdown & Stats */}
-                <div className="grid grid-cols-2 gap-4 max-w-sm w-full">
-                  <div className="p-3 bg.slate-50 rounded-xl border border-slate-200">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Time Remaining</span>
-                    <span className="text-2xl font-black text-[#182443] font-mono">
-                      {Math.floor(timeLeftSeconds / 60)}:{String(timeLeftSeconds % 60).padStart(2, '0')}
-                    </span>
-                  </div>
-
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Verified Scans</span>
-                    <span className="text-2xl font-black text-[#2fa085] font-mono">
-                      {scannedStudents.length}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    icon={Smartphone}
-                    onClick={() => setIsSimulatingScan(true)}
-                  >
-                    Simulate Student Camera Scan
-                  </Button>
-                </div>
+                <QRCodeSVG value={qrPayload} size={260} level="M" />
+                <p className="text-xs text-slate-500">Token expires at {new Date(qrToken.expires_at).toLocaleTimeString()}</p>
               </>
             ) : (
-              <div className="py-12 flex flex-col items-center justify-center">
-                <div className="p-4 bg-[#F4F3FF] rounded-full text-[#7067E8] mb-3">
-                  <QrCode className="w-12 h-12" />
-                </div>
-                <h4 className="text-base font-bold text-[#182443]">No Active QR Broadcast</h4>
-                <p className="text-xs text-slate-500 max-w-sm mt-1">
-                  Select course and duration, then click "Start Dynamic Broadcast" to begin classroom check-in session.
-                </p>
+              <div className="text-center text-slate-400">
+                <QrCode className="mx-auto mb-2 h-12 w-12" />
+                <p>Start a session to show its secure QR code.</p>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Live Scanned Roster Feed */}
-      {activeSession && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Real-Time Check-In Feed ({scannedStudents.length})</CardTitle>
-            <CardDescription>Verified student scan arrivals</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            {scannedStudents.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-400 font-medium">
-                Waiting for student scans... Verified devices will appear live here.
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {scannedStudents.map((st, idx) => (
-                  <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50/50">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-lg bg-[#EBF8F5] text-[#2fa085] flex items-center justify-center font-bold text-xs">
-                        <CheckCircle2 className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-[#182443]">
-                          {st.first_name} {st.last_name}
-                        </p>
-                        <p className="text-[10px] text-slate-400 font-mono">{st.roll_number || '2026-CS-001'}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[11px] font-bold text-[#2fa085] bg-[#EBF8F5] px-2.5 py-0.5 rounded-full border border-[#39B99B]/30">
-                        PRESENT
-                      </span>
-                      <span className="text-[10px] text-slate-400 block mt-0.5 font-mono">{st.marked_at}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Student QR Scan Simulation Modal */}
-      <Modal
-        isOpen={isSimulatingScan}
-        onClose={() => setIsSimulatingScan(false)}
-        title="Simulate Student Camera Scan"
-        description="Select a student device to test QR token verification"
-      >
-        <div className="space-y-4">
-          <p className="text-xs text-slate-600">
-            Click on any student below to simulate scanning the rotating token (<span className="font-mono text-[#7067E8] font-bold">{qrNonce}</span>):
-          </p>
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {students.map((st) => (
-              <button
-                key={st.id}
-                type="button"
-                onClick={() => {
-                  handleSimulateStudentScan(st);
-                  setIsSimulatingScan(false);
-                }}
-                className="w-full p-3 rounded-xl bg-slate-50 hover:bg-[#F4F3FF] border border-slate-200 text-left flex items-center justify-between transition-colors"
-              >
-                <div>
-                  <p className="text-xs font-bold text-[#182443]">
-                    {st.first_name} {st.last_name}
-                  </p>
-                  <p className="text-[10px] text-slate-500 font-mono">{st.roll_number}</p>
-                </div>
-                <span className="text-xs font-bold text-[#7067E8]">Scan & Register</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </Modal>
     </MainLayout>
   );
 }

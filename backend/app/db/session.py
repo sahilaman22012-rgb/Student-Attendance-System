@@ -1,14 +1,12 @@
 from collections.abc import Generator
-import os
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+from app.core.config import settings
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg://postgres:postgres@localhost:5432/secure_qr_attendance",
-)
+
+DATABASE_URL = settings.get_database_url() or "postgresql+psycopg://postgres:postgres@localhost:5432/secure_qr_attendance"
 
 
 class Base(DeclarativeBase):

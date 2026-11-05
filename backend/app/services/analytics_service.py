@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.models.course import CourseEnrollment
 from app.models.record import AttendanceRecord, AttendanceRecordStatus
@@ -16,13 +17,24 @@ LOW_ATTENDANCE_THRESHOLD = 75.0
 ATTENDED_STATUSES = (AttendanceRecordStatus.PRESENT, AttendanceRecordStatus.LATE)
 
 
+def _completed_session_filter() -> ColumnElement[bool]:
+    return or_(
+        AttendanceSession.status == AttendanceSessionStatus.COMPLETED,
+        and_(
+            AttendanceSession.status == AttendanceSessionStatus.ACTIVE,
+            AttendanceSession.end_time.is_not(None),
+            AttendanceSession.end_time <= func.now(),
+        ),
+    )
+
+
 def get_student_attendance_summary(db: Session, student_id: UUID, course_id: UUID) -> dict[str, Any]:
     """Return a student's attendance totals for completed sessions in one course."""
     completed_sessions = int(
         db.scalar(
             select(func.count(AttendanceSession.id)).where(
                 AttendanceSession.course_id == course_id,
-                AttendanceSession.status == AttendanceSessionStatus.COMPLETED,
+                _completed_session_filter(),
             )
         )
         or 0
@@ -33,7 +45,7 @@ def get_student_attendance_summary(db: Session, student_id: UUID, course_id: UUI
             .join(AttendanceSession, AttendanceSession.id == AttendanceRecord.session_id)
             .where(
                 AttendanceSession.course_id == course_id,
-                AttendanceSession.status == AttendanceSessionStatus.COMPLETED,
+                _completed_session_filter(),
                 AttendanceRecord.student_id == student_id,
                 AttendanceRecord.status.in_(ATTENDED_STATUSES),
             )
@@ -88,7 +100,7 @@ def get_course_summary_metrics(db: Session, course_id: UUID) -> dict[str, Any]:
         db.scalar(
             select(func.count(AttendanceSession.id)).where(
                 AttendanceSession.course_id == course_id,
-                AttendanceSession.status == AttendanceSessionStatus.COMPLETED,
+                _completed_session_filter(),
             )
         )
         or 0

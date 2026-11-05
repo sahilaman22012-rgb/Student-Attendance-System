@@ -6,6 +6,7 @@ import {
   CheckSquare,
   QrCode,
   BarChart3,
+  BookOpen,
   UserCheck,
   User,
   Settings,
@@ -49,6 +50,7 @@ export function Sidebar({ isCollapsed, toggleSidebar, isMobileOpen, closeMobile 
       items: [
         { label: 'My Dashboard', path: '/dashboard', icon: LayoutDashboard },
         { label: 'Attendance Records', path: '/my-attendance', icon: UserCheck },
+        { label: 'Scan QR Code', path: '/scan-qr', icon: QrCode },
       ],
     },
     {
@@ -57,7 +59,14 @@ export function Sidebar({ isCollapsed, toggleSidebar, isMobileOpen, closeMobile 
     },
   ];
 
-  const navGroups = isTeacherOrAdmin ? teacherNavGroups : studentNavGroups;
+  const navGroups = isTeacherOrAdmin
+    ? [
+        ...teacherNavGroups,
+        ...(role === 'ADMIN'
+          ? [{ group: 'ADMINISTRATION', items: [{ label: 'Institution Setup', path: '/admin', icon: BookOpen }] }]
+          : []),
+      ]
+    : studentNavGroups;
 
   return (
     <>

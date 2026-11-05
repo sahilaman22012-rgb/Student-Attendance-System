@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class CourseCreate(BaseModel):
@@ -45,3 +45,15 @@ class EnrollmentOut(BaseModel):
     student_id: UUID
     enrolled_at: datetime
     is_active: bool
+
+
+class StudentRosterOut(BaseModel):
+    id: UUID
+    email: EmailStr
+    first_name: str
+    last_name: str
+    role: str
+    status: str
+    roll_number: str
+    batch_year: int
+    department: str

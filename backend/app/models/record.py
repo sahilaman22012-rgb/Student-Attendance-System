@@ -16,6 +16,7 @@ class AttendanceRecordStatus(str, enum.Enum):
     PRESENT = "PRESENT"
     LATE = "LATE"
     EXCUSED = "EXCUSED"
+    ABSENT = "ABSENT"
     INVALIDATED = "INVALIDATED"
 
 

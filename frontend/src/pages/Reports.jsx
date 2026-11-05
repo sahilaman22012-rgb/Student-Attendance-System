@@ -1,249 +1,146 @@
-import React, { useState } from 'react';
-import {
-  Download,
-  Filter,
-  BarChart3,
-  TrendingUp,
-  AlertTriangle,
-  Calendar,
-  CheckCircle2,
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertTriangle, Download, Users } from 'lucide-react';
 import { MainLayout } from '../components/layout/MainLayout';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import { Badge } from '../components/ui/Badge';
-import { exportToCSV, formatDate } from '../utils/helpers';
-import { useToast } from '../context/ToastContext';
 import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
+import { getCourseRosterAnalyticsApi, getCourseSummaryApi } from '../api/attendance';
+import { apiDownload } from '../api/client';
 
 export function Reports() {
+  const { courses } = useData();
   const { showToast } = useToast();
-  const { courses, students } = useData();
-
-  const [selectedCourse, setSelectedCourse] = useState('ALL');
-  const [startDate, setStartDate] = useState('2026-09-01');
-  const [endDate, setEndDate] = useState('2026-09-28');
+  const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [roster, setRoster] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [onlyLowAttendance, setOnlyLowAttendance] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const reportData = students.map((st) => ({
-    id: st.id,
-    roll_number: st.roll_number,
-    name: `${st.first_name} ${st.last_name}`,
-    email: st.email,
-    department: st.department,
-    total_classes: 24,
-    attended_classes: Math.round(24 * ((st.overall_attendance || 90.0) / 100)),
-    percentage: st.overall_attendance || 90.0,
-    status: (st.overall_attendance || 90.0) < 75 ? 'WARNING' : 'GOOD',
-  }));
+  useEffect(() => {
+    if (!selectedCourseId && courses.length) setSelectedCourseId(courses[0].id);
+  }, [courses, selectedCourseId]);
 
-  const filteredReports = reportData.filter((r) => {
-    const matchesCourse = !selectedCourse || selectedCourse === 'ALL';
-    const matchesLow = !onlyLowAttendance || r.percentage < 75;
-    return matchesCourse && matchesLow;
-  });
+  useEffect(() => {
+    let active = true;
+    if (!selectedCourseId) return undefined;
+    setIsLoading(true);
+    setError('');
+    Promise.all([
+      getCourseRosterAnalyticsApi(selectedCourseId),
+      getCourseSummaryApi(selectedCourseId),
+    ])
+      .then(([courseRoster, courseSummary]) => {
+        if (!active) return;
+        setRoster(courseRoster);
+        setSummary(courseSummary);
+      })
+      .catch((requestError) => {
+        if (!active) return;
+        setError(requestError.message);
+        setRoster([]);
+        setSummary(null);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedCourseId]);
 
-  const handleExportCSV = () => {
-    if (filteredReports.length === 0) {
-      showToast('No data available to export.', 'warning');
-      return;
+  const lowAttendanceCount = roster.filter((student) => student.is_low_attendance).length;
+  const averageRate = roster.length
+    ? (roster.reduce((total, student) => total + student.attendance_rate, 0) / roster.length).toFixed(1)
+    : '0.0';
+  const visibleRows = roster.filter((student) => !onlyLowAttendance || student.is_low_attendance);
+  const selectedCourse = courses.find((course) => course.id === selectedCourseId);
+
+  const exportReport = async (format) => {
+    if (!selectedCourse) return;
+    try {
+      await apiDownload(
+        `/reports/course/${selectedCourseId}/export?format=${format}`,
+        `${selectedCourse.course_code}-attendance.${format}`,
+      );
+      showToast(`${format.toUpperCase()} report downloaded.`, 'success');
+    } catch (downloadError) {
+      showToast(downloadError.message || 'Could not download report.', 'error');
     }
-
-    const headers = ['Roll Number', 'Student Name', 'Department', 'Total Classes', 'Attended', 'Attendance %', 'Eligibility Status'];
-    const rows = filteredReports.map((r) => [
-      r.roll_number,
-      r.name,
-      r.department,
-      r.total_classes,
-      r.attended_classes,
-      `${r.percentage}%`,
-      r.percentage < 75 ? 'Shortage (<75%)' : 'Eligible',
-    ]);
-
-    exportToCSV(`ATTENDIQ_Report_${startDate}_to_${endDate}`, headers, rows);
-    showToast('Analytics report exported to CSV successfully!', 'success');
   };
 
-  const lowAttendanceCount = reportData.filter((r) => r.percentage < 75).length;
-
   return (
-    <MainLayout title="Analytics & Shortage Reports">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <MainLayout title="Attendance Analytics">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-[#182443] tracking-tight">Academic Analytics & Shortage Reports</h2>
-          <p className="text-xs text-slate-500">
-            Generate attendance shortage audits and export CSV reports
-          </p>
+          <h2 className="text-xl font-bold text-[#182443]">Course attendance reports</h2>
+          <p className="text-sm text-slate-500">Attendance totals are calculated from completed sessions stored by the server.</p>
         </div>
-
-        <Button variant="primary" icon={Download} onClick={handleExportCSV}>
-          Export CSV Report
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" icon={Download} onClick={() => exportReport('csv')} disabled={!selectedCourse}>
+            Export CSV
+          </Button>
+          <Button variant="primary" icon={Download} onClick={() => exportReport('pdf')} disabled={!selectedCourse}>
+            Export PDF
+          </Button>
+        </div>
       </div>
-
-      {/* Filters Toolbar */}
+      {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Select
-              label="Subject / Course Filter"
-              value={selectedCourse}
-              onChange={(e) => setSelectedCourse(e.target.value)}
-              options={[
-                { value: 'ALL', label: 'All Courses Combined' },
-                ...courses.map((c) => ({
-                  value: c.id,
-                  label: `${c.course_code} - ${c.title}`,
-                })),
-              ]}
-            />
-            <Input
-              label="Start Date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-            <Input
-              label="End Date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-            <div className="flex flex-col justify-end">
-              <label className="flex items-center space-x-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={onlyLowAttendance}
-                  onChange={(e) => setOnlyLowAttendance(e.target.checked)}
-                  className="rounded border-slate-300 text-[#7067E8] focus:ring-[#7067E8] w-4 h-4"
-                />
-                <span className="text-xs font-bold text-rose-800 flex items-center">
-                  <AlertTriangle className="w-3.5 h-3.5 mr-1 text-rose-600" />
-                  Show Shortage (&lt;75%) Only
-                </span>
-              </label>
-            </div>
-          </div>
+          <Select
+            label="Course"
+            value={selectedCourseId}
+            onChange={(event) => setSelectedCourseId(event.target.value)}
+            options={courses.map((course) => ({
+              value: course.id,
+              label: `${course.course_code} - ${course.title}`,
+            }))}
+          />
         </CardContent>
       </Card>
-
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Conducted Lectures</p>
-              <p className="text-2xl font-black text-[#182443] mt-1">24 Classes</p>
-              <span className="text-[11px] text-slate-500 mt-1 block">In selected date range</span>
-            </div>
-            <div className="p-3 bg-[#F4F3FF] text-[#7067E8] rounded-xl">
-              <Calendar className="w-6 h-6" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Average Attendance</p>
-              <p className="text-2xl font-black text-[#182443] mt-1">85.3%</p>
-              <span className="text-[11px] text-[#39B99B] font-bold flex items-center mt-1">
-                <TrendingUp className="w-3 h-3 mr-1" /> Above institutional benchmark
-              </span>
-            </div>
-            <div className="p-3 bg-[#EBF8F5] text-[#39B99B] rounded-xl">
-              <BarChart3 className="w-6 h-6" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Shortage Warnings</p>
-              <p className="text-2xl font-black text-[#d04343] mt-1">{lowAttendanceCount} Students</p>
-              <span className="text-[11px] text-rose-600 font-bold flex items-center mt-1">
-                <AlertTriangle className="w-3 h-3 mr-1" /> Below 75% requirement
-              </span>
-            </div>
-            <div className="p-3 bg-[#FDF2F2] text-[#E55353] rounded-xl">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card><CardContent><p className="text-xs uppercase text-slate-500">Completed sessions</p><p className="mt-1 text-2xl font-bold">{summary?.total_completed_sessions ?? '—'}</p></CardContent></Card>
+        <Card><CardContent><p className="text-xs uppercase text-slate-500">Average roster attendance</p><p className="mt-1 text-2xl font-bold">{averageRate}%</p></CardContent></Card>
+        <Card><CardContent><p className="text-xs uppercase text-slate-500">Below 75%</p><p className="mt-1 flex items-center gap-2 text-2xl font-bold text-rose-700"><AlertTriangle className="h-5 w-5" />{lowAttendanceCount}</p></CardContent></Card>
       </div>
-
-      {/* Main Report Table */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Attendance Roster & Shortage Audit</CardTitle>
-            <CardDescription>
-              Filtered from {formatDate(startDate)} to {formatDate(endDate)}
-            </CardDescription>
+            <CardTitle>Enrolled student attendance</CardTitle>
+            <CardDescription>{summary?.total_active_enrollments ?? 0} active enrollments</CardDescription>
           </div>
-          <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
-            {filteredReports.length} Records
-          </span>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={onlyLowAttendance} onChange={(event) => setOnlyLowAttendance(event.target.checked)} />
+            Shortage only
+          </label>
         </CardHeader>
-
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Roll Number</TableHead>
-                <TableHead>Student Name</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead className="text-center">Attended / Total</TableHead>
-                <TableHead className="text-center">Percentage</TableHead>
-                <TableHead className="text-right">Eligibility Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredReports.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-mono text-xs font-bold text-[#7067E8]">
-                    {r.roll_number}
-                  </TableCell>
-                  <TableCell>
-                    <p className="font-bold text-[#182443]">{r.name}</p>
-                    <p className="text-xs text-slate-500">{r.email}</p>
-                  </TableCell>
-                  <TableCell className="text-xs">{r.department}</TableCell>
-                  <TableCell className="text-center font-mono text-xs font-semibold">
-                    {r.attended_classes} / {r.total_classes}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <div className="inline-flex items-center space-x-2">
-                      <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            r.percentage < 75 ? 'bg-[#E55353]' : 'bg-[#7067E8]'
-                          }`}
-                          style={{ width: `${r.percentage}%` }}
-                        />
-                      </div>
-                      <span
-                        className={`font-bold text-xs ${
-                          r.percentage < 75 ? 'text-[#d04343]' : 'text-slate-800'
-                        }`}
-                      >
-                        {r.percentage}%
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Badge status={r.status}>
-                      {r.percentage < 75 ? 'Shortage (<75%)' : 'Eligible'}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {isLoading ? (
+            <p className="p-6 text-sm text-slate-500">Loading report…</p>
+          ) : (
+            <Table>
+              <TableHeader><TableRow><TableHead>Roll number</TableHead><TableHead>Student</TableHead><TableHead>Attended / Sessions</TableHead><TableHead>Rate</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {visibleRows.map((student) => (
+                  <TableRow key={student.student_id}>
+                    <TableCell className="font-mono">{student.roll_number}</TableCell>
+                    <TableCell>{student.student_name}</TableCell>
+                    <TableCell>{student.sessions_attended} / {student.total_completed_sessions}</TableCell>
+                    <TableCell>{student.attendance_rate}%</TableCell>
+                    <TableCell><Badge status={student.is_low_attendance ? 'WARNING' : 'GOOD'}>{student.is_low_attendance ? 'Shortage' : 'Eligible'}</Badge></TableCell>
+                  </TableRow>
+                ))}
+                {!visibleRows.length && (
+                  <TableRow><TableCell colSpan={5} className="py-8 text-center text-slate-500"><Users className="mx-auto mb-2 h-5 w-5" />{roster.length ? 'No shortage records for this course.' : 'No enrolled students or attendance history yet.'}</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </MainLayout>

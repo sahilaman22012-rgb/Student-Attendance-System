@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import os
+
 from passlib.context import CryptContext
 from sqlalchemy import select
 
-from app.db.session import Base, SessionLocal, engine
+from app.core.config import settings
+from app.db.session import SessionLocal
 from app.models import Course, CourseEnrollment, Student, Teacher, User, UserRole, UserStatus
 
 
@@ -11,13 +14,19 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def seed_database() -> None:
-    """Create the schema and insert the standard local development dataset."""
-    Base.metadata.create_all(bind=engine)
+    """Insert a local-only development dataset after applying database migrations."""
+    if settings.ENVIRONMENT == "production":
+        raise RuntimeError("The development seed command is disabled in production")
     with SessionLocal.begin() as db:
         if db.scalar(select(User.id).limit(1)) is not None:
             return
 
-        password_hash = pwd_context.hash("ChangeMe123!")
+        seed_password = os.getenv("SEED_PASSWORD", "")
+        if len(seed_password) < 12:
+            raise RuntimeError("Set SEED_PASSWORD to a value of at least 12 characters before seeding")
+        if len(seed_password.encode("utf-8")) > 72:
+            raise RuntimeError("SEED_PASSWORD must be no more than 72 UTF-8 bytes for bcrypt")
+        password_hash = pwd_context.hash(seed_password)
         admin = User(
             email="admin@attendance.local",
             hashed_password=password_hash,

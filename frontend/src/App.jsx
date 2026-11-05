@@ -15,6 +15,8 @@ import { QrAttendance } from './pages/QrAttendance';
 import { Reports } from './pages/Reports';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { ProfileSettings } from './pages/ProfileSettings';
+import { ScanQr } from './pages/ScanQr';
+import { AdminManagement } from './pages/AdminManagement';
 
 function DashboardRouter() {
   const { role } = useAuth();
@@ -51,6 +53,17 @@ export default function App() {
                   <ProtectedRoute>
                     <RoleGuard allowedRoles={['TEACHER', 'ADMIN']}>
                       <StudentManagement />
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['ADMIN']}>
+                      <AdminManagement />
                     </RoleGuard>
                   </ProtectedRoute>
                 }
@@ -96,6 +109,17 @@ export default function App() {
                   <ProtectedRoute>
                     <RoleGuard allowedRoles={['STUDENT']}>
                       <StudentDashboard />
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/scan-qr"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['STUDENT']}>
+                      <ScanQr />
                     </RoleGuard>
                   </ProtectedRoute>
                 }

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.models.user import UserRole, UserStatus
 
@@ -40,6 +40,13 @@ class StudentCreate(BaseModel):
     batch_year: int
     department: str = Field(min_length=1, max_length=150)
 
+    @field_validator("password")
+    @classmethod
+    def password_fits_bcrypt(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must be at most 72 UTF-8 bytes")
+        return value
+
 
 class TeacherCreate(BaseModel):
     email: EmailStr
@@ -49,3 +56,10 @@ class TeacherCreate(BaseModel):
     employee_id: str = Field(min_length=1, max_length=50)
     department: str = Field(min_length=1, max_length=150)
     office_location: str | None = Field(default=None, max_length=150)
+
+    @field_validator("password")
+    @classmethod
+    def password_fits_bcrypt(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must be at most 72 UTF-8 bytes")
+        return value

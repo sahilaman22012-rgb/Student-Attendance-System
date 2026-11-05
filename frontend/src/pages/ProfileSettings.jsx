@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Lock, Shield, Mail, Key, CheckCircle2, LogOut, Bell, Moon, Sliders } from 'lucide-react';
+import { Lock, Key, CheckCircle2, LogOut } from 'lucide-react';
 import { MainLayout } from '../components/layout/MainLayout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -8,6 +8,7 @@ import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
+import { changePasswordApi } from '../api/auth';
 
 export function ProfileSettings() {
   const { user, role, logout } = useAuth();
@@ -19,11 +20,7 @@ export function ProfileSettings() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Preference Toggles
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [shortageAlerts, setShortageAlerts] = useState(true);
-
-  const handleChangePassword = (e) => {
+  const handleChangePassword = async (e) => {
     e.preventDefault();
     if (newPassword.length < 8) {
       showToast('New password must be at least 8 characters long.', 'warning');
@@ -35,13 +32,17 @@ export function ProfileSettings() {
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await changePasswordApi(currentPassword, newPassword);
       showToast('Password updated successfully!', 'success');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    }, 500);
+    } catch (error) {
+      showToast(error.message || 'Could not update password.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleLogout = () => {
@@ -54,8 +55,8 @@ export function ProfileSettings() {
     <MainLayout title="Account & Preferences">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-[#182443] tracking-tight">User Account & Platform Preferences</h2>
-          <p className="text-xs text-slate-500">Manage security credentials and notification thresholds</p>
+          <h2 className="text-xl font-bold text-[#182443] tracking-tight">Account & Security</h2>
+          <p className="text-xs text-slate-500">Manage your account access and password</p>
         </div>
 
         <Button variant="danger" icon={LogOut} onClick={handleLogout}>
@@ -88,11 +89,11 @@ export function ProfileSettings() {
             <div className="w-full pt-4 border-t border-slate-100 space-y-3 text-xs text-left">
               <div className="flex justify-between">
                 <span className="text-slate-400 font-bold uppercase">Account ID:</span>
-                <span className="font-mono text-[#182443] font-bold">{user?.identifier || 'EMP-9021'}</span>
+                <span className="font-mono text-[#182443] font-bold">{user?.id}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400 font-bold uppercase">Department:</span>
-                <span className="text-slate-900 font-bold">{user?.department || 'Computer Science'}</span>
+                <span className="text-slate-900 font-bold">{user?.email}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400 font-bold uppercase">Platform Status:</span>
@@ -151,52 +152,6 @@ export function ProfileSettings() {
             </CardContent>
           </Card>
 
-          {/* System Notification Toggles */}
-          <Card>
-            <CardHeader>
-              <CardTitle>System Notification Preferences</CardTitle>
-              <CardDescription>Configure attendance alerts and email summaries</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                <div className="flex items-center space-x-3">
-                  <Bell className="w-5 h-5 text-[#7067E8]" />
-                  <div>
-                    <p className="text-xs font-bold text-[#182443]">Shortage Alerts (&lt;75%)</p>
-                    <p className="text-[11px] text-slate-500">Receive alerts when students fall below required attendance</p>
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={shortageAlerts}
-                  onChange={(e) => {
-                    setShortageAlerts(e.target.checked);
-                    showToast('Preference updated', 'info');
-                  }}
-                  className="rounded border-slate-300 text-[#7067E8] focus:ring-[#7067E8] w-4 h-4"
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                <div className="flex items-center space-x-3">
-                  <Mail className="w-5 h-5 text-[#39B99B]" />
-                  <div>
-                    <p className="text-xs font-bold text-[#182443]">Daily Session Digest Emails</p>
-                    <p className="text-[11px] text-slate-500">Receive automated daily summary of logged sessions</p>
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={emailAlerts}
-                  onChange={(e) => {
-                    setEmailAlerts(e.target.checked);
-                    showToast('Preference updated', 'info');
-                  }}
-                  className="rounded border-slate-300 text-[#7067E8] focus:ring-[#7067E8] w-4 h-4"
-                />
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </MainLayout>

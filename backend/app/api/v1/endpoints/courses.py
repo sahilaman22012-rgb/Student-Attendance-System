@@ -7,8 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db, require_roles
 from app.models.course import Course, CourseEnrollment
 from app.models.user import Student, Teacher, User, UserRole
-from app.schemas.course import CourseCreate, CourseOut, EnrollmentCreate, EnrollmentOut
-from app.schemas.user import UserOut
+from app.schemas.course import CourseCreate, CourseOut, EnrollmentCreate, EnrollmentOut, StudentRosterOut
 
 
 router = APIRouter(prefix="/courses", tags=["courses"])
@@ -85,19 +84,37 @@ def enroll_student(
     return enrollment
 
 
-@router.get("/{course_id}/students", response_model=list[UserOut])
+@router.get("/{course_id}/students", response_model=list[StudentRosterOut])
 def course_students(
     course_id: UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles(["ADMIN", "TEACHER", "STUDENT"])),
-) -> list[User]:
-    if db.scalar(select(Course.id).where(Course.id == course_id)) is None:
+    current_user: User = Depends(require_roles(["ADMIN", "TEACHER"])),
+) -> list[dict[str, object]]:
+    course = db.scalar(select(Course).where(Course.id == course_id))
+    if course is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
+
+    if current_user.role == UserRole.TEACHER and course.instructor_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+
     query = (
-        select(User)
+        select(User, Student)
         .join(Student, Student.id == User.id)
         .join(CourseEnrollment, CourseEnrollment.student_id == Student.id)
         .where(CourseEnrollment.course_id == course_id, CourseEnrollment.is_active.is_(True))
         .order_by(User.last_name, User.first_name)
     )
-    return list(db.scalars(query).all())
+    return [
+        {
+            "id": user.id,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "role": user.role.value,
+            "status": user.status.value,
+            "roll_number": student.roll_number,
+            "batch_year": student.batch_year,
+            "department": student.department,
+        }
+        for user, student in db.execute(query).all()
+    ]

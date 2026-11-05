@@ -1,43 +1,54 @@
-import { DEMO_SESSIONS, DEMO_STUDENT_ATTENDANCE, DEMO_ATTENDANCE_LOGS } from '../utils/mockData';
+import { apiRequest } from './client';
 
-export async function createAttendanceSessionApi(sessionData) {
-  return {
-    id: `ses-${Date.now()}`,
-    course_id: sessionData.course_id,
-    start_time: new Date().toISOString(),
-    end_time: new Date(Date.now() + (sessionData.duration_minutes || 5) * 60000).toISOString(),
-    status: 'ACTIVE',
-    token_ttl_seconds: 15,
-    session_secret: Math.random().toString(36).substring(2, 10),
-  };
+export function createAttendanceSessionApi(sessionData) {
+  return apiRequest('/attendance/sessions', {
+    method: 'POST',
+    body: JSON.stringify(sessionData),
+  });
 }
 
-export async function getAttendanceSessionsApi() {
-  return DEMO_SESSIONS;
+export function getAttendanceSessionsApi() {
+  return apiRequest('/attendance/sessions');
 }
 
-export async function submitAttendanceRecordsApi(sessionId, records) {
-  return {
-    status: 'SUCCESS',
-    message: 'Attendance sheet submitted and saved to session log',
-    records_count: records.length,
-    timestamp: new Date().toISOString(),
-  };
+export function getCurrentQrTokenApi(sessionId) {
+  return apiRequest(`/attendance/sessions/${sessionId}/token`);
 }
 
-export async function verifyQrTokenScanApi(sessionId, qrNonce, studentId) {
-  return {
-    status: 'PRESENT',
-    student_id: studentId,
-    token_nonce: qrNonce,
-    marked_at: new Date().toISOString(),
-  };
+export function endAttendanceSessionApi(sessionId) {
+  return apiRequest(`/attendance/sessions/${sessionId}/end`, { method: 'POST' });
 }
 
-export async function getStudentAttendanceSummaryApi() {
-  return DEMO_STUDENT_ATTENDANCE;
+export function submitManualAttendanceApi(data) {
+  return apiRequest('/attendance/manual', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
-export async function getStudentAttendanceLogsApi() {
-  return DEMO_ATTENDANCE_LOGS;
+export function scanQrTokenApi(sessionId, nonce, deviceId) {
+  return apiRequest(`/attendance/sessions/${sessionId}/scan`, {
+    method: 'POST',
+    body: JSON.stringify({ nonce, device_id: deviceId }),
+  });
+}
+
+export function getStudentAttendanceSummaryApi() {
+  return apiRequest('/attendance/me/summary');
+}
+
+export function getStudentAttendanceLogsApi() {
+  return apiRequest('/attendance/me/logs');
+}
+
+export function getCourseRosterAnalyticsApi(courseId) {
+  return apiRequest(`/analytics/course/${courseId}/roster`);
+}
+
+export function getCourseSummaryApi(courseId) {
+  return apiRequest(`/analytics/course/${courseId}/summary`);
+}
+
+export function getCourseReportUrl(courseId, format = 'csv') {
+  return `/api/v1/reports/course/${courseId}/export?format=${format}`;
 }

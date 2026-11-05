@@ -9,6 +9,7 @@ from app.api.deps import get_db, require_roles
 from app.core.security import get_password_hash
 from app.models.user import Student, Teacher, User, UserRole, UserStatus
 from app.schemas.user import StudentCreate, TeacherCreate, UserOut
+from app.schemas.course import StudentRosterOut
 
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -99,6 +100,36 @@ def list_users(
     if role is not None:
         query = query.where(User.role == role)
     return list(db.scalars(query).all())
+
+
+@router.get("/students", response_model=list[StudentRosterOut])
+def list_students(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=100),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(["ADMIN"])),
+) -> list[dict[str, object]]:
+    rows = db.execute(
+        select(User, Student)
+        .join(Student, Student.id == User.id)
+        .order_by(User.last_name, User.first_name)
+        .offset(skip)
+        .limit(limit)
+    ).all()
+    return [
+        {
+            "id": user.id,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "role": user.role.value,
+            "status": user.status.value,
+            "roll_number": student.roll_number,
+            "batch_year": student.batch_year,
+            "department": student.department,
+        }
+        for user, student in rows
+    ]
 
 
 @router.get("/{user_id}", response_model=UserOut)

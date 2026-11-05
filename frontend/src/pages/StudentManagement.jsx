@@ -15,14 +15,15 @@ import { useData } from '../context/DataContext';
 
 export function StudentManagement() {
   const { role } = useAuth();
-  const { students, courses, addStudent } = useData();
+  const { students, courses, addStudent, enrollStudent } = useData();
   const { showToast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
 
   // Modals
-  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [detailStudent, setDetailStudent] = useState(null);
+  const [enrollmentStudent, setEnrollmentStudent] = useState(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState('');
@@ -30,10 +31,11 @@ export function StudentManagement() {
   // New Student Form State
   const [newStudent, setNewStudent] = useState({
     email: '',
+    password: '',
     first_name: '',
     last_name: '',
     roll_number: '',
-    batch_year: 2026,
+    batch_year: new Date().getFullYear(),
     department: 'Computer Science',
   });
 
@@ -48,30 +50,43 @@ export function StudentManagement() {
     return matchesSearch && matchesDept;
   });
 
-  const handleCreateStudent = (e) => {
+  const handleCreateStudent = async (e) => {
     e.preventDefault();
-    if (!newStudent.first_name || !newStudent.last_name || !newStudent.roll_number) {
-      showToast('Please fill in student name and roll number.', 'warning');
+    if (!newStudent.first_name || !newStudent.last_name || !newStudent.roll_number || !newStudent.password) {
+      showToast('Please complete all required fields.', 'warning');
       return;
     }
 
-    const created = addStudent(newStudent);
-    showToast(`Student ${created.first_name} ${created.last_name} registered successfully!`, 'success');
-    setAddModalOpen(false);
-    setNewStudent({
-      email: '',
-      first_name: '',
-      last_name: '',
-      roll_number: '',
-      batch_year: 2026,
-      department: 'Computer Science',
-    });
+    try {
+      const created = await addStudent(newStudent);
+      showToast(`Student ${created.first_name} ${created.last_name} registered successfully.`, 'success');
+      setAddModalOpen(false);
+      setNewStudent({
+        email: '',
+        password: '',
+        first_name: '',
+        last_name: '',
+        roll_number: '',
+        batch_year: new Date().getFullYear(),
+        department: 'Computer Science',
+      });
+    } catch (error) {
+      showToast(error.message || 'Could not register student.', 'error');
+    }
   };
 
-  const handleEnrollStudent = (e) => {
+  const handleEnrollStudent = async (e) => {
     e.preventDefault();
-    showToast('Student enrolled into selected subject course successfully!', 'success');
-    setEnrollModalOpen(false);
+    if (!enrollmentStudent || !selectedCourseId) return;
+    try {
+      await enrollStudent(selectedCourseId, enrollmentStudent.id);
+      showToast('Student enrolled in the selected course.', 'success');
+      setEnrollModalOpen(false);
+      setEnrollmentStudent(null);
+      setSelectedCourseId('');
+    } catch (error) {
+      showToast(error.message || 'Could not enroll student.', 'error');
+    }
   };
 
   return (
@@ -82,13 +97,11 @@ export function StudentManagement() {
           <p className="text-xs text-slate-500">Manage enrolled students, departments, and course assignments</p>
         </div>
 
-        <Button
-          variant="primary"
-          icon={UserPlus}
-          onClick={() => setAddModalOpen(true)}
-        >
-          Add Student
-        </Button>
+        {role === 'ADMIN' && (
+          <Button variant="primary" icon={UserPlus} onClick={() => setAddModalOpen(true)}>
+            Add Student
+          </Button>
+        )}
       </div>
 
       {/* Filters and Search Toolbar */}
@@ -125,8 +138,8 @@ export function StudentManagement() {
         <EmptyState
           title="No Students Found"
           description="Try adjusting search query or department filter."
-          actionLabel="Add New Student"
-          onAction={() => setAddModalOpen(true)}
+          actionLabel={role === 'ADMIN' ? 'Add New Student' : undefined}
+          onAction={role === 'ADMIN' ? () => setAddModalOpen(true) : undefined}
         />
       ) : (
         <Card>
@@ -145,7 +158,7 @@ export function StudentManagement() {
               {filteredStudents.map((st) => (
                 <TableRow key={st.id}>
                   <TableCell className="font-mono text-xs font-bold text-indigo-900">
-                    {st.roll_number || '2026-CS-000'}
+                    {st.roll_number}
                   </TableCell>
                   <TableCell>
                     <div>
@@ -155,11 +168,11 @@ export function StudentManagement() {
                       <p className="text-xs text-slate-500">{st.email}</p>
                     </div>
                   </TableCell>
-                  <TableCell className="text-xs">{st.department || 'Computer Science'}</TableCell>
-                  <TableCell className="text-xs font-semibold">{st.batch_year || 2026}</TableCell>
+                  <TableCell className="text-xs">{st.department}</TableCell>
+                  <TableCell className="text-xs font-semibold">{st.batch_year}</TableCell>
                   <TableCell>
-                    <span className={`text-xs font-bold ${st.overall_attendance < 75 ? 'text-rose-600' : 'text-emerald-700'}`}>
-                      {st.overall_attendance || 90.0}%
+                    <span className="text-xs text-slate-500">
+                    --
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
@@ -168,7 +181,11 @@ export function StudentManagement() {
                         size="sm"
                         variant="outline"
                         icon={BookOpen}
-                        onClick={() => setEnrollModalOpen(true)}
+                        onClick={() => {
+                          setEnrollmentStudent(st);
+                          setSelectedCourseId('');
+                          setEnrollModalOpen(true);
+                        }}
                       >
                         Enroll
                       </Button>
@@ -176,7 +193,7 @@ export function StudentManagement() {
                         size="sm"
                         variant="ghost"
                         icon={Eye}
-                        onClick={() => setSelectedStudent(st)}
+                        onClick={() => setDetailStudent(st)}
                       >
                         Details
                       </Button>
@@ -191,42 +208,42 @@ export function StudentManagement() {
 
       {/* Student Details Modal */}
       <Modal
-        isOpen={!!selectedStudent}
-        onClose={() => setSelectedStudent(null)}
+        isOpen={!!detailStudent}
+        onClose={() => setDetailStudent(null)}
         title="Student Record Profile"
         description="Detailed student registration and academic info"
       >
-        {selectedStudent && (
+        {detailStudent && (
           <div className="space-y-4">
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center space-x-4">
               <div className="w-12 h-12 rounded-xl bg-indigo-900 text-white font-bold text-lg flex items-center justify-center">
-                {selectedStudent.first_name[0]}
+                {detailStudent.first_name[0]}
               </div>
               <div>
                 <h4 className="text-base font-bold text-slate-900">
-                  {selectedStudent.first_name} {selectedStudent.last_name}
+                  {detailStudent.first_name} {detailStudent.last_name}
                 </h4>
-                <p className="text-xs text-slate-500">{selectedStudent.email}</p>
+                <p className="text-xs text-slate-500">{detailStudent.email}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-xs">
               <div className="p-3 bg-white rounded-lg border border-slate-200">
                 <span className="text-slate-400 block font-semibold uppercase">Roll Number</span>
-                <span className="font-bold text-slate-900 text-sm mt-0.5 block">{selectedStudent.roll_number || '2026-CS-001'}</span>
+                <span className="font-bold text-slate-900 text-sm mt-0.5 block">{detailStudent.roll_number}</span>
               </div>
               <div className="p-3 bg-white rounded-lg border border-slate-200">
                 <span className="text-slate-400 block font-semibold uppercase">Department</span>
-                <span className="font-bold text-slate-900 text-sm mt-0.5 block">{selectedStudent.department || 'Computer Science'}</span>
+                <span className="font-bold text-slate-900 text-sm mt-0.5 block">{detailStudent.department}</span>
               </div>
               <div className="p-3 bg-white rounded-lg border border-slate-200">
                 <span className="text-slate-400 block font-semibold uppercase">Batch Year</span>
-                <span className="font-bold text-slate-900 text-sm mt-0.5 block">{selectedStudent.batch_year || 2026}</span>
+                <span className="font-bold text-slate-900 text-sm mt-0.5 block">{detailStudent.batch_year}</span>
               </div>
               <div className="p-3 bg-white rounded-lg border border-slate-200">
                 <span className="text-slate-400 block font-semibold uppercase">Overall Attendance</span>
                 <span className="font-bold text-emerald-700 text-sm mt-0.5 block">
-                  {selectedStudent.overall_attendance || 90.0}%
+                  {detailStudent.overall_attendance ?? '--'}
                 </span>
               </div>
             </div>
@@ -239,7 +256,7 @@ export function StudentManagement() {
         isOpen={addModalOpen}
         onClose={() => setAddModalOpen(false)}
         title="Register New Student"
-        description="Add a new student profile to demo roster state"
+        description="Create a student account with a unique roll number."
       >
         <form onSubmit={handleCreateStudent} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -264,6 +281,14 @@ export function StudentManagement() {
             value={newStudent.email}
             onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
           />
+          <Input
+            label="Initial Password"
+            type="password"
+            minLength={8}
+            required
+            value={newStudent.password}
+            onChange={(e) => setNewStudent({ ...newStudent, password: e.target.value })}
+          />
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Roll Number"
@@ -277,7 +302,7 @@ export function StudentManagement() {
               type="number"
               required
               value={newStudent.batch_year}
-              onChange={(e) => setNewStudent({ ...newStudent, batch_year: parseInt(e.target.value) || 2026 })}
+              onChange={(e) => setNewStudent({ ...newStudent, batch_year: parseInt(e.target.value, 10) || new Date().getFullYear() })}
             />
           </div>
           <Select
@@ -305,7 +330,11 @@ export function StudentManagement() {
       {/* Enroll Student Modal */}
       <Modal
         isOpen={enrollModalOpen}
-        onClose={() => setEnrollModalOpen(false)}
+        onClose={() => {
+          setEnrollModalOpen(false);
+          setEnrollmentStudent(null);
+          setSelectedCourseId('');
+        }}
         title="Enroll Student in Subject Course"
         description="Select active course for student registration"
       >

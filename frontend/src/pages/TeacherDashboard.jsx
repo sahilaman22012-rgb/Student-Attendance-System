@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Users,
@@ -22,23 +22,47 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { formatDate, formatTime } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { getCourseRosterAnalyticsApi } from '../api/attendance';
+import { useToast } from '../context/ToastContext';
 
 export function TeacherDashboard() {
   const { user } = useAuth();
   const { courses, sessions, students } = useData();
+  const { showToast } = useToast();
   const navigate = useNavigate();
+  const [courseRates, setCourseRates] = useState({});
 
-  const totalStudentsCount = students.length || 45;
-  const avgAttendance = 88.4;
+  useEffect(() => {
+    let active = true;
+    Promise.all(
+      courses.map(async (course) => {
+        const roster = await getCourseRosterAnalyticsApi(course.id);
+        const rate = roster.length
+          ? roster.reduce((total, student) => total + student.attendance_rate, 0) / roster.length
+          : 0;
+        return [course.id, Number(rate.toFixed(1))];
+      }),
+    )
+      .then((entries) => {
+        if (active) setCourseRates(Object.fromEntries(entries));
+      })
+      .catch((error) => {
+        if (active) showToast(error.message || 'Could not load course attendance analytics.', 'error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [courses, showToast]);
 
-  // Weekly attendance trend dataset
-  const weeklyData = [
-    { day: 'Mon', rate: 92, count: '41/45' },
-    { day: 'Tue', rate: 85, count: '38/45' },
-    { day: 'Wed', rate: 89, count: '40/45' },
-    { day: 'Thu', rate: 94, count: '42/45' },
-    { day: 'Fri', rate: 82, count: '37/45' },
-  ];
+  const totalStudentsCount = students.length;
+  const rates = Object.values(courseRates);
+  const avgAttendance = rates.length
+    ? (rates.reduce((total, rate) => total + rate, 0) / rates.length).toFixed(1)
+    : null;
+  const courseChart = courses.map((course) => ({
+    code: course.course_code,
+    rate: courseRates[course.id] || 0,
+  }));
 
   return (
     <MainLayout title="Instructor Overview">
@@ -50,14 +74,11 @@ export function TeacherDashboard() {
             <div className="flex items-center space-x-2 mb-3">
               <span className="px-3 py-1 rounded-full bg-[#7067E8]/20 text-[#928BFF] text-xs font-bold border border-[#7067E8]/30 flex items-center">
                 <Calendar className="w-3.5 h-3.5 mr-1.5" />
-                Monday, September 28, 2026
-              </span>
-              <span className="px-2.5 py-1 rounded-full bg-[#39B99B]/20 text-[#39B99B] text-xs font-bold border border-[#39B99B]/30">
-                Fall 2026 Term
+                {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </span>
             </div>
             <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-white">
-              Welcome back, {user?.first_name || 'Instructor'}!
+              Welcome back, {user?.first_name}!
             </h2>
             <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
               ATTENDIQ Smart Campus Hub. Take class attendance, generate dynamic QR tokens, and review shortage reports.
@@ -105,7 +126,7 @@ export function TeacherDashboard() {
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Assigned Subjects</p>
               <p className="text-2xl font-black text-[#182443] mt-1">{courses.length}</p>
-              <span className="text-[11px] text-slate-500 mt-1 block">Fall 2026 Semester</span>
+              <span className="text-[11px] text-slate-500 mt-1 block">Assigned to your account</span>
             </div>
             <div className="p-3 bg-[#F4F3FF] text-[#7067E8] rounded-xl">
               <BookOpen className="w-6 h-6" />
@@ -116,10 +137,10 @@ export function TeacherDashboard() {
         <Card>
           <CardContent className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Today's Attendance</p>
-              <p className="text-2xl font-black text-[#182443] mt-1">{avgAttendance}%</p>
-              <span className="text-[11px] text-[#39B99B] font-bold flex items-center mt-1">
-                <TrendingUp className="w-3 h-3 mr-1" /> +2.4% vs last week
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Average attendance</p>
+              <p className="text-2xl font-black text-[#182443] mt-1">{avgAttendance === null ? '—' : `${avgAttendance}%`}</p>
+              <span className="text-[11px] text-slate-500 mt-1 block">
+                Across completed course sessions
               </span>
             </div>
             <div className="p-3 bg-[#EBF8F5] text-[#39B99B] rounded-xl">
@@ -134,7 +155,7 @@ export function TeacherDashboard() {
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sessions Recorded</p>
               <p className="text-2xl font-black text-[#182443] mt-1">{sessions.length}</p>
               <span className="text-[11px] text-amber-600 font-bold flex items-center mt-1">
-                <Clock className="w-3 h-3 mr-1" /> Last class today
+                <Clock className="w-3 h-3 mr-1" /> Saved attendance sessions
               </span>
             </div>
             <div className="p-3 bg-[#FFF8EC] text-[#F5A623] rounded-xl">
@@ -150,13 +171,13 @@ export function TeacherDashboard() {
         {/* Weekly Attendance Visualization Chart */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle>Weekly Attendance Trend</CardTitle>
-            <CardDescription>Daily participation rate across all classes</CardDescription>
+            <CardTitle>Course attendance</CardTitle>
+            <CardDescription>Average student rate based on completed sessions</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-end justify-between h-48 pt-6 px-2 border-b border-slate-100">
-              {weeklyData.map((d, idx) => (
-                <div key={idx} className="flex flex-col items-center space-y-2 group">
+              {courseChart.map((d) => (
+                <div key={d.code} className="flex flex-col items-center space-y-2 group">
                   <span className="text-[10px] font-extrabold text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
                     {d.rate}%
                   </span>
@@ -166,14 +187,14 @@ export function TeacherDashboard() {
                       style={{ height: `${d.rate}%` }}
                     />
                   </div>
-                  <span className="text-xs font-bold text-slate-700">{d.day}</span>
+                  <span className="text-xs font-bold text-slate-700">{d.code}</span>
                 </div>
               ))}
             </div>
 
             <div className="p-3 bg-[#F4F3FF] rounded-xl border border-[#7067E8]/20 flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-700">Weekly Average:</span>
-              <span className="font-extrabold text-[#7067E8]">87.4% Participation</span>
+              <span className="font-semibold text-slate-700">Average:</span>
+              <span className="font-extrabold text-[#7067E8]">{avgAttendance === null ? '—' : `${avgAttendance}%`}</span>
             </div>
           </CardContent>
         </Card>
@@ -205,7 +226,7 @@ export function TeacherDashboard() {
                     <TableCell>
                       <div>
                         <p className="font-bold text-[#182443]">{ses.course_code}</p>
-                        <p className="text-xs text-slate-500">{ses.course_title || 'Database Systems'}</p>
+                        <p className="text-xs text-slate-500">{ses.course_title}</p>
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">
@@ -216,7 +237,7 @@ export function TeacherDashboard() {
                       <Badge status={ses.status}>{ses.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right font-extrabold text-slate-900">
-                      {ses.attendance_rate ? `${ses.attendance_rate}%` : '89.2%'}
+                      {ses.attendance_rate == null ? '—' : `${ses.attendance_rate}%`}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -234,7 +255,7 @@ export function TeacherDashboard() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {courses.map((c) => {
-            const rate = c.attendance_rate || 85.0;
+            const rate = courseRates[c.id] || 0;
             const isWarning = rate < 75;
             return (
               <div key={c.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
