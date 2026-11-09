@@ -47,7 +47,7 @@ export function StudentDashboard() {
               Monitor attendance recorded for your enrolled courses.
             </p>
           </div>
-          <Link to="/scan-qr" className="rounded-xl bg-[#7067E8] px-4 py-3 text-center text-sm font-bold text-white hover:bg-[#5C52E0]">
+          <Link to="/scan-qr" className="rounded-xl bg-[#A3E635] px-4 py-3 text-center text-sm font-bold text-[#080a08] hover:bg-[#BEF264]">
             Scan class QR
           </Link>
 

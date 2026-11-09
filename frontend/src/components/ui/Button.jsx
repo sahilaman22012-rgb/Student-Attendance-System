@@ -11,16 +11,16 @@ export function Button({
   className = '',
   ...props
 }) {
-  const baseStyles = 'inline-flex items-center justify-center font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl cursor-pointer shadow-xs';
+  const baseStyles = 'inline-flex items-center justify-center font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#080a08] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl cursor-pointer shadow-xs';
 
   const variants = {
-    primary: 'bg-[#7067E8] hover:bg-[#5C52E0] text-white focus:ring-[#7067E8]/40 active:bg-[#5C52E0]',
-    navy: 'bg-[#182443] hover:bg-[#0f172a] text-white focus:ring-[#182443]/40',
-    secondary: 'bg-[#E9E7FF] text-[#7067E8] hover:bg-[#d8d4ff] border border-[#7067E8]/20 focus:ring-[#7067E8]/30',
-    teal: 'bg-[#39B99B] hover:bg-[#2fa085] text-white focus:ring-[#39B99B]/40',
-    outline: 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus:ring-slate-300',
-    ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:ring-slate-200 shadow-none',
-    danger: 'bg-[#E55353] hover:bg-[#d04343] text-white focus:ring-[#E55353]/40',
+    primary: 'bg-[#A3E635] hover:bg-[#BEF264] text-[#080a08] focus:ring-[#A3E635]/40 active:bg-[#84CC16]',
+    navy: 'bg-[#202620] hover:bg-[#303830] text-white focus:ring-[#A3E635]/30 border border-[#303830]',
+    secondary: 'bg-[#1d2b11] text-[#A3E635] hover:bg-[#283a18] border border-[#3b5124] focus:ring-[#A3E635]/30',
+    teal: 'bg-[#1d2b11] hover:bg-[#283a18] text-[#A3E635] border border-[#3b5124] focus:ring-[#A3E635]/30',
+    outline: 'border border-slate-200 bg-[#111411] text-white hover:bg-slate-50 focus:ring-[#A3E635]/30',
+    ghost: 'text-slate-300 hover:bg-slate-100 hover:text-white focus:ring-[#A3E635]/30 shadow-none',
+    danger: 'bg-rose-700 hover:bg-rose-600 text-white focus:ring-rose-500/40',
   };
 
   const sizes = {

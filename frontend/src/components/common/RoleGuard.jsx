@@ -10,7 +10,7 @@ export function RoleGuard({ children, allowedRoles = [] }) {
   if (!role || !allowedRoles.includes(role)) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mb-4">
+        <div className="w-16 h-16 rounded-2xl bg-rose-950 text-rose-400 flex items-center justify-center mb-4">
           <ShieldAlert className="w-10 h-10" />
         </div>
         <h2 className="text-2xl font-bold text-slate-900">Access Restricted</h2>

@@ -17,7 +17,7 @@ export function Header({ onMenuClick, title = 'Dashboard' }) {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 lg:px-8 py-3.5 flex items-center justify-between shadow-2xs">
+    <header className="sticky top-0 z-30 bg-[#0d100d]/95 backdrop-blur-md border-b border-slate-200/90 px-4 lg:px-8 py-3.5 flex items-center justify-between shadow-2xs">
       {/* Title & Mobile Toggle */}
       <div className="flex items-center space-x-3">
         <button
@@ -29,14 +29,14 @@ export function Header({ onMenuClick, title = 'Dashboard' }) {
         </button>
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-lg lg:text-xl font-bold text-[#182443] tracking-tight leading-none">
+            <h1 className="text-lg lg:text-xl font-bold text-white tracking-tight leading-none">
               {title}
             </h1>
             <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-[#E9E7FF] text-[#7067E8] text-[10px] font-extrabold uppercase">
               Smart Campus
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1 hidden md:block">
+          <p className="text-xs text-slate-300 mt-1 hidden md:block">
             ATTENDIQ — Automated Student Attendance & Analytics
           </p>
         </div>
@@ -54,10 +54,10 @@ export function Header({ onMenuClick, title = 'Dashboard' }) {
               {user?.first_name ? user.first_name[0] : 'U'}
             </div>
             <div className="text-left hidden sm:block">
-              <p className="text-xs font-bold text-[#182443] leading-tight">
+              <p className="text-xs font-bold text-white leading-tight">
                 {user?.first_name} {user?.last_name}
               </p>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+              <p className="text-[10px] text-slate-300 font-bold uppercase tracking-wider mt-0.5">
                 {role}
               </p>
             </div>
@@ -71,9 +71,9 @@ export function Header({ onMenuClick, title = 'Dashboard' }) {
                 className="fixed inset-0 z-40"
                 onClick={() => setDropdownOpen(false)}
               />
-              <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-white border border-slate-200 shadow-xl z-50 py-2 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-[#141814] border border-slate-200 shadow-xl z-50 py-2 animate-in fade-in zoom-in-95 duration-150">
                 <div className="px-4 py-3 border-b border-slate-100">
-                  <p className="text-xs font-bold text-[#182443] truncate">
+                  <p className="text-xs font-bold text-white truncate">
                     {user?.first_name} {user?.last_name}
                   </p>
                   <p className="text-xs text-slate-500 truncate mt-0.5">{user?.email}</p>

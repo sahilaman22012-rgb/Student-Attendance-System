@@ -14,7 +14,7 @@ export function Input({
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+        <label htmlFor={inputId} className="block text-xs font-semibold text-white mb-1.5 uppercase tracking-wider">
           {label}
         </label>
       )}
@@ -31,7 +31,7 @@ export function Input({
           } ${
             error
               ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-200 text-rose-900 bg-rose-50/30'
-              : 'border-slate-300 focus:border-indigo-600 focus:ring-indigo-100 text-slate-900 bg-white'
+              : 'border-slate-300 focus:border-[#A3E635] focus:ring-[#A3E635]/20 text-white bg-[#181d18]'
           } ${className}`}
           {...props}
         />

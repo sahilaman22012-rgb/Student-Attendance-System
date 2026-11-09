@@ -7,7 +7,7 @@ export function MainLayout({ children, title = 'Dashboard' }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex text-slate-800">
+    <div className="min-h-screen bg-[#080a08] flex text-white">
       {/* Sidebar */}
       <Sidebar
         isCollapsed={isCollapsed}

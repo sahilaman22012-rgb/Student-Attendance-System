@@ -9,10 +9,10 @@ export function ProtectedRoute({ children }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#080a08] flex items-center justify-center p-4">
         <div className="flex flex-col items-center space-y-3">
-          <Loader2 className="w-8 h-8 text-indigo-900 animate-spin" />
-          <p className="text-xs font-semibold text-slate-600">Verifying security session...</p>
+          <Loader2 className="w-8 h-8 text-[#A3E635] animate-spin" />
+          <p className="text-xs font-semibold text-white">Verifying security session...</p>
         </div>
       </div>
     );

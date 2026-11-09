@@ -216,7 +216,7 @@ export function StudentManagement() {
         {detailStudent && (
           <div className="space-y-4">
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-xl bg-indigo-900 text-white font-bold text-lg flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-[#A3E635] text-[#080a08] font-bold text-lg flex items-center justify-center">
                 {detailStudent.first_name[0]}
               </div>
               <div>

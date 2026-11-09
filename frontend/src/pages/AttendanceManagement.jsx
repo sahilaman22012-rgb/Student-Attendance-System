@@ -230,12 +230,12 @@ export function AttendanceManagement() {
           <XCircle className="w-5 h-5 text-[#E55353]" />
         </div>
 
-        <div className="bg-[#182443] text-white p-4 rounded-2xl border border-[#182443] flex items-center justify-between shadow-md">
+        <div className="bg-[#0d100d] text-white p-4 rounded-2xl border border-[#303830] flex items-center justify-between shadow-md">
           <div>
             <p className="text-[11px] font-bold text-slate-300 uppercase">Attendance Rate</p>
             <p className="text-xl font-black text-white mt-0.5">{attendanceRate}%</p>
           </div>
-          <div className="w-9 h-9 rounded-full bg-[#7067E8] text-white font-black flex items-center justify-center text-xs">
+          <div className="w-9 h-9 rounded-full bg-[#A3E635] text-[#080a08] font-black flex items-center justify-center text-xs">
             %
           </div>
         </div>
@@ -332,7 +332,7 @@ export function AttendanceManagement() {
                           disabled={isSubmitted}
                           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                             currentStatus === 'PRESENT'
-                              ? 'bg-[#39B99B] text-white shadow-xs'
+                              ? 'bg-[#A3E635] text-[#080a08] shadow-xs'
                               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                           }`}
                         >
@@ -374,7 +374,7 @@ export function AttendanceManagement() {
                           disabled={isSubmitted}
                           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                             currentStatus === 'EXCUSED'
-                              ? 'bg-[#7067E8] text-white shadow-xs'
+                              ? 'bg-[#A3E635] text-[#080a08] shadow-xs'
                               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                           }`}
                         >

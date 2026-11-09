@@ -3,7 +3,7 @@ import React from 'react';
 export function Card({ children, className = '', ...props }) {
   return (
     <div
-      className={`bg-white rounded-2xl border border-slate-200/90 shadow-xs transition-all duration-200 hover:shadow-md ${className}`}
+      className={`bg-[#111411] rounded-2xl border border-slate-200/90 shadow-xs transition-all duration-200 hover:shadow-md ${className}`}
       {...props}
     >
       {children}
@@ -16,7 +16,7 @@ export function CardHeader({ children, className = '' }) {
 }
 
 export function CardTitle({ children, className = '' }) {
-  return <h3 className={`text-base font-bold text-[#182443] tracking-tight ${className}`}>{children}</h3>;
+  return <h3 className={`text-base font-bold text-white tracking-tight ${className}`}>{children}</h3>;
 }
 
 export function CardDescription({ children, className = '' }) {
@@ -28,5 +28,5 @@ export function CardContent({ children, className = '' }) {
 }
 
 export function CardFooter({ children, className = '' }) {
-  return <div className={`p-4 bg-slate-50/60 rounded-b-2xl border-t border-slate-100 ${className}`}>{children}</div>;
+  return <div className={`p-4 bg-[#181d18] rounded-b-2xl border-t border-slate-100 ${className}`}>{children}</div>;
 }

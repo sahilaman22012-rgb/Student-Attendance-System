@@ -72,7 +72,7 @@ export function TeacherDashboard() {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <div className="flex items-center space-x-2 mb-3">
-              <span className="px-3 py-1 rounded-full bg-[#7067E8]/20 text-[#928BFF] text-xs font-bold border border-[#7067E8]/30 flex items-center">
+              <span className="px-3 py-1 rounded-full bg-[#1d2b11] text-[#A3E635] text-xs font-bold border border-[#303830] flex items-center">
                 <Calendar className="w-3.5 h-3.5 mr-1.5" />
                 {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </span>
