@@ -47,7 +47,7 @@ export function ProfileSettings() {
 
   const handleLogout = () => {
     logout();
-    showToast('Signed out of ATTENDIQ Platform', 'info');
+    showToast('Signed out of Secure Attendance', 'info');
     navigate('/login');
   };
 
@@ -111,7 +111,7 @@ export function ProfileSettings() {
           <Card>
             <CardHeader>
               <CardTitle>Security & Password Change</CardTitle>
-              <CardDescription>Update your ATTENDIQ login credentials</CardDescription>
+              <CardDescription>Update your Secure Attendance login credentials</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">

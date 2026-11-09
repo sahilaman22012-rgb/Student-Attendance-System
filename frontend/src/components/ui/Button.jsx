@@ -11,15 +11,15 @@ export function Button({
   className = '',
   ...props
 }) {
-  const baseStyles = 'inline-flex items-center justify-center font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#080a08] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl cursor-pointer shadow-xs';
+  const baseStyles = 'inline-flex items-center justify-center font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#f4efe5] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl cursor-pointer shadow-xs';
 
   const variants = {
-    primary: 'bg-[#A3E635] hover:bg-[#BEF264] text-[#080a08] focus:ring-[#A3E635]/40 active:bg-[#84CC16]',
-    navy: 'bg-[#202620] hover:bg-[#303830] text-white focus:ring-[#A3E635]/30 border border-[#303830]',
-    secondary: 'bg-[#1d2b11] text-[#A3E635] hover:bg-[#283a18] border border-[#3b5124] focus:ring-[#A3E635]/30',
-    teal: 'bg-[#1d2b11] hover:bg-[#283a18] text-[#A3E635] border border-[#3b5124] focus:ring-[#A3E635]/30',
-    outline: 'border border-slate-200 bg-[#111411] text-white hover:bg-slate-50 focus:ring-[#A3E635]/30',
-    ghost: 'text-slate-300 hover:bg-slate-100 hover:text-white focus:ring-[#A3E635]/30 shadow-none',
+    primary: 'bg-[#b94d24] hover:bg-[#9f3d1c] text-white focus:ring-[#b94d24]/40 active:bg-[#9f3d1c]',
+    navy: 'bg-[#191714] hover:bg-[#29251f] text-white focus:ring-[#b94d24]/30 border border-[#403a31]',
+    secondary: 'bg-[#f4e1d7] text-[#9f3d1c] hover:bg-[#ebd0c1] border border-[#e5c4b1] focus:ring-[#b94d24]/30',
+    teal: 'bg-[#f4e1d7] hover:bg-[#ebd0c1] text-[#9f3d1c] border border-[#e5c4b1] focus:ring-[#b94d24]/30',
+    outline: 'border border-slate-200 bg-[#fbf8f1] text-[#191714] hover:bg-slate-50 focus:ring-[#b94d24]/30',
+    ghost: 'text-slate-600 hover:bg-slate-100 hover:text-[#191714] focus:ring-[#b94d24]/30 shadow-none',
     danger: 'bg-rose-700 hover:bg-rose-600 text-white focus:ring-rose-500/40',
   };
 

@@ -31,7 +31,7 @@ export function StudentDashboard() {
   return (
     <MainLayout title="Student Portal">
       {/* Student Top Banner with Circular Percentage Gauge */}
-      <div className="bg-[#182443] rounded-2xl p-6 lg:p-8 text-white shadow-xl relative overflow-hidden">
+      <div className="ink-panel bg-[#182443] rounded-2xl p-6 lg:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-[#7067E8]/20 rounded-full blur-3xl" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -61,7 +61,7 @@ export function StudentDashboard() {
                   r="32"
                   stroke="currentColor"
                   strokeWidth="6"
-                  className="text-slate-700"
+                  className="text-white/20"
                   fill="transparent"
                 />
                 <circle
@@ -73,7 +73,7 @@ export function StudentDashboard() {
                   strokeDasharray={200}
                   strokeDashoffset={200 - (200 * overallPercentage) / 100}
                   strokeLinecap="round"
-                  className={isWarning ? 'text-rose-400' : 'text-[#39B99B]'}
+                  className={isWarning ? 'text-rose-400' : 'text-[#d9794f]'}
                   fill="transparent"
                 />
               </svg>
@@ -92,7 +92,7 @@ export function StudentDashboard() {
       </div>
 
       {/* Read-Only Notice */}
-      <div className="p-3.5 rounded-xl bg-slate-900 text-slate-300 border border-slate-800 text-xs flex items-center justify-between">
+      <div className="p-3.5 rounded-xl bg-[#fbf8f1] text-[#191714] border border-slate-200 text-xs flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Lock className="w-4 h-4 text-[#F5A623] shrink-0" />
           <span>

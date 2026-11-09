@@ -6,26 +6,26 @@ export function getStatusBadgeStyle(status) {
     case 'ACTIVE':
     case 'GOOD':
     case 'ELIGIBLE':
-      return 'bg-[#1d2b11] text-[#A3E635] border-[#3b5124]';
+      return 'bg-[#f4e1d7] text-[#9f3d1c] border-[#e5c4b1]';
     case 'ABSENT':
     case 'CANCELLED':
     case 'CRITICAL':
     case 'SHORTAGE':
-      return 'bg-[#35171d] text-[#fb7185] border-[#71313d]';
+      return 'bg-[#f8e6e5] text-[#b42332] border-[#e9bfbd]';
     case 'LATE':
     case 'WARNING':
     case 'SCHEDULED':
-      return 'bg-[#302510] text-[#fbbf24] border-[#67501e]';
+      return 'bg-[#f7edda] text-[#9a5a08] border-[#ead7ac]';
     case 'EXCUSED':
     case 'COMPLETED':
-      return 'bg-[#202620] text-white border-[#3b453b]';
+      return 'bg-[#ebe3d6] text-[#29251f] border-[#ded5c7]';
     default:
-      return 'bg-[#202620] text-white border-[#3b453b]';
+      return 'bg-[#ebe3d6] text-[#29251f] border-[#ded5c7]';
   }
 }
 
 export function Badge({ children, status, variant, className = '' }) {
-  const badgeStyle = status ? getStatusBadgeStyle(status) : variant || 'bg-[#202620] text-white border-[#3b453b]';
+  const badgeStyle = status ? getStatusBadgeStyle(status) : variant || 'bg-[#ebe3d6] text-[#29251f] border-[#ded5c7]';
   return (
     <span
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badgeStyle} ${className}`}

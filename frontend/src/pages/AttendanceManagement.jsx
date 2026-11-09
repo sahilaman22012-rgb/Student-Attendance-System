@@ -230,7 +230,7 @@ export function AttendanceManagement() {
           <XCircle className="w-5 h-5 text-[#E55353]" />
         </div>
 
-        <div className="bg-[#0d100d] text-white p-4 rounded-2xl border border-[#303830] flex items-center justify-between shadow-md">
+        <div className="ink-panel bg-[#0d100d] text-white p-4 rounded-2xl border border-[#303830] flex items-center justify-between shadow-md">
           <div>
             <p className="text-[11px] font-bold text-slate-300 uppercase">Attendance Rate</p>
             <p className="text-xl font-black text-white mt-0.5">{attendanceRate}%</p>

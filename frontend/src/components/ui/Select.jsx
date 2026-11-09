@@ -16,7 +16,7 @@ export function Select({
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={selectId} className="block text-xs font-semibold text-white mb-1.5 uppercase tracking-wider">
+        <label htmlFor={selectId} className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
           {label}
         </label>
       )}
@@ -33,7 +33,7 @@ export function Select({
           } ${
             error
               ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-200 text-rose-900 bg-rose-50/30'
-              : 'border-slate-300 focus:border-[#A3E635] focus:ring-[#A3E635]/20 text-white bg-[#181d18]'
+              : 'border-slate-300 focus:border-[#b94d24] focus:ring-[#b94d24]/20 text-[#191714] bg-[#fbf8f1]'
           } ${className}`}
           {...props}
         >

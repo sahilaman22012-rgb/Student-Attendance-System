@@ -66,8 +66,8 @@ export function TeacherDashboard() {
 
   return (
     <MainLayout title="Instructor Overview">
-      {/* ATTENDIQ Welcome Banner */}
-      <div className="bg-[#182443] rounded-2xl p-6 lg:p-8 text-white shadow-xl relative overflow-hidden">
+      {/* Secure Attendance welcome banner */}
+      <div className="ink-panel bg-[#182443] rounded-2xl p-6 lg:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-[#7067E8]/20 rounded-full blur-3xl" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -81,7 +81,7 @@ export function TeacherDashboard() {
               Welcome back, {user?.first_name}!
             </h2>
             <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
-              ATTENDIQ Smart Campus Hub. Take class attendance, generate dynamic QR tokens, and review shortage reports.
+              Secure Attendance campus hub. Take class attendance, generate dynamic QR tokens, and review shortage reports.
             </p>
           </div>
 
